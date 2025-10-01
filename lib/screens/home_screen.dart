@@ -3,6 +3,7 @@ import 'login_screen.dart';
 import 'main_screen.dart';
 import 'pose_detection_screen.dart';
 import 'ankle_measure_screen.dart';
+import 'ankle_auto_measure_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -113,6 +114,19 @@ class HomeScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => AnkleMeasureScreen(),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    _buildActionButton(
+                      context,
+                      '발목 각도 자동 측정',
+                      'AI로 실시간 발목 각도 측정하기',
+                      Color(0xFF00796B),
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AnkleAutoMeasureScreen(),
                         ),
                       ),
                     ),

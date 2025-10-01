@@ -209,23 +209,6 @@ class _AnkleMeasureScreenState extends State<AnkleMeasureScreen> {
     print('[AngleMeasure] 🔄 점 초기화 완료. 점 개수: ${_points.length}');
   }
 
-  // 강제 점 추가 (디버그용)
-  void _addTestPoint() {
-    if (_points.length >= 3) return;
-    
-    final testPoint = Point(
-      x: 100.0 + (_points.length * 50.0),
-      y: 100.0 + (_points.length * 50.0),
-      id: _points.length + 1,
-    );
-    
-    setState(() {
-      _points.add(testPoint);
-    });
-    
-    print('[AngleMeasure] 🧪 테스트 점 추가: ${_points.length}/3');
-  }
-
   // 점 색상 가져오기
   Color _getPointColor(int pointId) {
     switch (pointId) {

@@ -396,6 +396,18 @@ class _AnkleOverlayPainter extends CustomPainter {
       ..color = Colors.cyanAccent
       ..style = PaintingStyle.fill;
 
+    final kneePaint = Paint()
+      ..color = Colors.lightBlueAccent
+      ..style = PaintingStyle.fill;
+
+    final anklePaint = Paint()
+      ..color = Colors.amberAccent
+      ..style = PaintingStyle.fill;
+
+    final footPaint = Paint()
+      ..color = Colors.pinkAccent
+      ..style = PaintingStyle.fill;
+
     final bonePaint = Paint()
       ..color = Colors.cyanAccent.withOpacity(0.8)
       ..strokeWidth = 2.0
@@ -414,23 +426,52 @@ class _AnkleOverlayPainter extends CustomPainter {
 
       Offset? to( PoseLandmark? lm ) => lm == null ? null : Offset(lm.x * scaleX, lm.y * scaleY);
 
-      final offsets = <Offset?>[
-        to(lk), to(la), to(lf), to(rk), to(ra), to(rf)
-      ];
-
-      for (final o in offsets) {
-        if (o != null) canvas.drawCircle(o, 3.0, pointPaint);
+      // 라벨 도우미
+      void drawLabel(Offset anchor, String text) {
+        const double padH = 6;
+        const double padV = 3;
+        final tp = TextPainter(
+          text: TextSpan(
+            text: text,
+            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final w = tp.width + padH * 2;
+        final h = tp.height + padV * 2;
+        final rect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(anchor.dx + 6, anchor.dy - h - 2, w, h),
+          Radius.circular(6),
+        );
+        final bg = Paint()..color = Colors.black.withOpacity(0.5);
+        canvas.drawRRect(rect, bg);
+        tp.paint(canvas, Offset(anchor.dx + 6 + padH, anchor.dy - h - 2 + padV));
       }
+
+      final oLK = to(lk);
+      final oLA = to(la);
+      final oLF = to(lf);
+      final oRK = to(rk);
+      final oRA = to(ra);
+      final oRF = to(rf);
+
+      // 점 표시: 발목은 크게, 무릎/발끝은 기본 크기
+      if (oLK != null) { canvas.drawCircle(oLK, 3.0, kneePaint); drawLabel(oLK, 'LK (leftKnee)'); }
+      if (oLA != null) { canvas.drawCircle(oLA, 5.0, anklePaint); drawLabel(oLA, 'LA (leftAnkle)'); }
+      if (oLF != null) { canvas.drawCircle(oLF, 3.0, footPaint); drawLabel(oLF, 'LF (leftFoot)'); }
+      if (oRK != null) { canvas.drawCircle(oRK, 3.0, kneePaint); drawLabel(oRK, 'RK (rightKnee)'); }
+      if (oRA != null) { canvas.drawCircle(oRA, 5.0, anklePaint); drawLabel(oRA, 'RA (rightAnkle)'); }
+      if (oRF != null) { canvas.drawCircle(oRF, 3.0, footPaint); drawLabel(oRF, 'RF (rightFoot)'); }
 
       void drawLine(Offset? a, Offset? b) {
         if (a == null || b == null) return;
         canvas.drawLine(a, b, bonePaint);
       }
 
-      drawLine(to(lk), to(la));
-      drawLine(to(la), to(lf));
-      drawLine(to(rk), to(ra));
-      drawLine(to(ra), to(rf));
+      drawLine(oLK, oLA);
+      drawLine(oLA, oLF);
+      drawLine(oRK, oRA);
+      drawLine(oRA, oRF);
     }
   }
 

@@ -16,8 +16,6 @@ class PoseDetectionProvider extends ChangeNotifier {
   int _extraQuarterTurns = 0; // 추가 강제 회전 (90도 단위)
   
   // 분석 결과
-  Map<String, dynamic>? _armStretchResult;
-  Map<String, dynamic>? _standUpResult;
   Map<String, dynamic>? _ankleResult;
   String _currentPosture = '알 수 없음';
   double _postureConfidence = 0.0;
@@ -34,8 +32,6 @@ class PoseDetectionProvider extends ChangeNotifier {
     // 일부 기기(가로 기본)에서 옆으로 누운 케이스 보정: 270도면 추가 90도 회전 적용
     _extraQuarterTurns = (rotation == InputImageRotation.rotation270deg) ? 1 : 0;
   }
-  Map<String, dynamic>? get armStretchResult => _armStretchResult;
-  Map<String, dynamic>? get standUpResult => _standUpResult;
   Map<String, dynamic>? get ankleResult => _ankleResult;
   String get currentPosture => _currentPosture;
   double get postureConfidence => _postureConfidence;
@@ -53,26 +49,7 @@ class PoseDetectionProvider extends ChangeNotifier {
     );
   }
 
-  // 정밀 단일 이미지 포즈 감지 (실시간 아님, 정확도 우선)
-  Future<List<Pose>> detectPosesFromFilePath(String filePath) async {
-    final singleImageDetector = PoseDetector(
-      options: PoseDetectorOptions(
-        mode: PoseDetectionMode.single,
-        model: PoseDetectionModel.accurate,
-      ),
-    );
-
-    try {
-      final inputImage = InputImage.fromFilePath(filePath);
-      final poses = await singleImageDetector.processImage(inputImage);
-      return poses;
-    } catch (e) {
-      debugPrint('단일 이미지 포즈 감지 오류: $e');
-      return [];
-    } finally {
-      await singleImageDetector.close();
-    }
-  }
+  // (제거) 단일 이미지 포즈 감지: 현재 기능에서 사용하지 않음
 
   // 실제 Google ML Kit을 사용한 포즈 감지
   Future<void> detectPoses(CameraImage image) async {
@@ -199,125 +176,12 @@ class PoseDetectionProvider extends ChangeNotifier {
     return nv21;
   }
 
-  // 동적 포즈 데이터 생성 (시간에 따라 변하는 실제 같은 데이터)
-  List<Pose> _generateDummyPoses() {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final timeVariation = (now / 1000) % 10; // 0-10초 주기로 변화
-    
-    // 시간에 따라 자세가 변하도록 설정
-    double posturePhase = timeVariation / 10.0; // 0.0 ~ 1.0
-    
-    // 자세 변화: 누워있음(0.0) → 앉아있음(0.5) → 서있음(1.0)
-    double shoulderY, hipY, kneeY, ankleY;
-    double kneeAngleVariation, torsoAngleVariation;
-    
-    if (posturePhase < 0.3) {
-      // 낮은 활동 자세 (0.0 ~ 0.3) - 단순화하여 '앉아있음'으로 처리
-      shoulderY = 150.0;
-      hipY = 155.0;
-      kneeY = 160.0;
-      ankleY = 165.0;
-      kneeAngleVariation = 160.0 + (posturePhase * 20); // 160-166도
-      torsoAngleVariation = 85.0 - (posturePhase * 10); // 85-75도 (수평에 가까움)
-      _currentPosture = '앉아있음';
-    } else if (posturePhase < 0.7) {
-      // 앉아있는 자세 (0.3 ~ 0.7)
-      double sittingPhase = (posturePhase - 0.3) / 0.4;
-      shoulderY = 80.0 + (sittingPhase * 20);
-      hipY = 150.0 + (sittingPhase * 10);
-      kneeY = 200.0 + (sittingPhase * 20);
-      ankleY = 240.0 + (sittingPhase * 30);
-      kneeAngleVariation = 90.0 + (sittingPhase * 30); // 90-120도
-      torsoAngleVariation = 20.0 + (sittingPhase * 15); // 20-35도
-      _currentPosture = '앉아있음';
-    } else {
-      // 서있는 자세 (0.7 ~ 1.0)
-      double standingPhase = (posturePhase - 0.7) / 0.3;
-      shoulderY = 80.0;
-      hipY = 180.0;
-      kneeY = 260.0;
-      ankleY = 340.0;
-      kneeAngleVariation = 170.0 + (standingPhase * 10); // 170-180도
-      torsoAngleVariation = 5.0 + (standingPhase * 10); // 5-15도 (수직에 가까움)
-      _currentPosture = '서있음';
-    }
-    
-    // 실제 각도 계산을 위한 동적 키포인트 생성
-    final landmarks = <PoseLandmarkType, PoseLandmark>{
-      PoseLandmarkType.leftShoulder: PoseLandmark(
-        type: PoseLandmarkType.leftShoulder,
-        x: 100.0, y: shoulderY, z: 0.0, likelihood: 0.9,
-      ),
-      PoseLandmarkType.rightShoulder: PoseLandmark(
-        type: PoseLandmarkType.rightShoulder,
-        x: 200.0, y: shoulderY, z: 0.0, likelihood: 0.9,
-      ),
-      PoseLandmarkType.leftElbow: PoseLandmark(
-        type: PoseLandmarkType.leftElbow,
-        x: 80.0 + (timeVariation * 5), y: shoulderY + 40, z: 0.0, likelihood: 0.8,
-      ),
-      PoseLandmarkType.rightElbow: PoseLandmark(
-        type: PoseLandmarkType.rightElbow,
-        x: 220.0 - (timeVariation * 5), y: shoulderY + 40, z: 0.0, likelihood: 0.8,
-      ),
-      PoseLandmarkType.leftWrist: PoseLandmark(
-        type: PoseLandmarkType.leftWrist,
-        x: 60.0 + (timeVariation * 8), y: shoulderY + 80, z: 0.0, likelihood: 0.7,
-      ),
-      PoseLandmarkType.rightWrist: PoseLandmark(
-        type: PoseLandmarkType.rightWrist,
-        x: 240.0 - (timeVariation * 8), y: shoulderY + 80, z: 0.0, likelihood: 0.7,
-      ),
-      PoseLandmarkType.leftHip: PoseLandmark(
-        type: PoseLandmarkType.leftHip,
-        x: 110.0, y: hipY, z: 0.0, likelihood: 0.9,
-      ),
-      PoseLandmarkType.rightHip: PoseLandmark(
-        type: PoseLandmarkType.rightHip,
-        x: 190.0, y: hipY, z: 0.0, likelihood: 0.9,
-      ),
-      PoseLandmarkType.leftKnee: PoseLandmark(
-        type: PoseLandmarkType.leftKnee,
-        x: 115.0, y: kneeY, z: 0.0, likelihood: 0.8,
-      ),
-      PoseLandmarkType.rightKnee: PoseLandmark(
-        type: PoseLandmarkType.rightKnee,
-        x: 185.0, y: kneeY, z: 0.0, likelihood: 0.8,
-      ),
-      PoseLandmarkType.leftAnkle: PoseLandmark(
-        type: PoseLandmarkType.leftAnkle,
-        x: 120.0 + (timeVariation * 2), y: ankleY, z: 0.0, likelihood: 0.7,
-      ),
-      PoseLandmarkType.rightAnkle: PoseLandmark(
-        type: PoseLandmarkType.rightAnkle,
-        x: 180.0 - (timeVariation * 2), y: ankleY, z: 0.0, likelihood: 0.7,
-      ),
-      PoseLandmarkType.leftFootIndex: PoseLandmark(
-        type: PoseLandmarkType.leftFootIndex,
-        x: 120.0 + (timeVariation * 3), y: ankleY + 20, z: 0.0, likelihood: 0.6,
-      ),
-      PoseLandmarkType.rightFootIndex: PoseLandmark(
-        type: PoseLandmarkType.rightFootIndex,
-        x: 180.0 - (timeVariation * 3), y: ankleY + 20, z: 0.0, likelihood: 0.6,
-      ),
-    };
-
-    print('[PoseGen] 🎭 자세 생성: $_currentPosture (phase: ${posturePhase.toStringAsFixed(2)})');
-    print('[PoseGen] 📐 예상 무릎각도: ${kneeAngleVariation.toStringAsFixed(1)}°, 몸통각도: ${torsoAngleVariation.toStringAsFixed(1)}°');
-
-    return [Pose(landmarks: landmarks)];
-  }
+  
 
   void _analyzeAllPoses() {
     if (_poses.isEmpty) return;
 
     final pose = _poses.first;
-    
-    // 팔 뻗기 분석
-    _armStretchResult = _analyzeArmStretch(pose);
-    
-    // 일어나기 분석
-    _standUpResult = _analyzeStandUp(pose);
     
     // 발목 분석
     _ankleResult = _analyzeAnkle(pose);
@@ -328,96 +192,9 @@ class PoseDetectionProvider extends ChangeNotifier {
     _postureConfidence = postureResult['confidence'];
   }
 
-  Map<String, dynamic>? _analyzeArmStretch(Pose pose) {
-    try {
-      final leftShoulder = _findLandmark(pose, PoseLandmarkType.leftShoulder);
-      final leftElbow = _findLandmark(pose, PoseLandmarkType.leftElbow);
-      final leftWrist = _findLandmark(pose, PoseLandmarkType.leftWrist);
-      
-      final rightShoulder = _findLandmark(pose, PoseLandmarkType.rightShoulder);
-      final rightElbow = _findLandmark(pose, PoseLandmarkType.rightElbow);
-      final rightWrist = _findLandmark(pose, PoseLandmarkType.rightWrist);
+  // 제거됨: 팔 뻗기 분석(현재 기능 미사용)
 
-      if (leftShoulder == null || leftElbow == null || leftWrist == null ||
-          rightShoulder == null || rightElbow == null || rightWrist == null) {
-        return null;
-      }
-
-      final leftAngle = _calculateAngle(
-        [leftShoulder.x, leftShoulder.y],
-        [leftElbow.x, leftElbow.y],
-        [leftWrist.x, leftWrist.y],
-      );
-
-      final rightAngle = _calculateAngle(
-        [rightShoulder.x, rightShoulder.y],
-        [rightElbow.x, rightElbow.y],
-        [rightWrist.x, rightWrist.y],
-      );
-
-      final leftArmExtended = leftAngle > 160;
-      final rightArmExtended = rightAngle > 160;
-      final isCorrectPosition = leftArmExtended && rightArmExtended;
-
-      return {
-        'leftArmAngle': leftAngle,
-        'rightArmAngle': rightAngle,
-        'leftArmExtended': leftArmExtended,
-        'rightArmExtended': rightArmExtended,
-        'isCorrectPosition': isCorrectPosition,
-      };
-    } catch (e) {
-      print('팔 뻗기 분석 오류: $e');
-      return null;
-    }
-  }
-
-  Map<String, dynamic>? _analyzeStandUp(Pose pose) {
-    try {
-      final leftHip = _findLandmark(pose, PoseLandmarkType.leftHip);
-      final leftKnee = _findLandmark(pose, PoseLandmarkType.leftKnee);
-      final leftAnkle = _findLandmark(pose, PoseLandmarkType.leftAnkle);
-
-      final rightHip = _findLandmark(pose, PoseLandmarkType.rightHip);
-      final rightKnee = _findLandmark(pose, PoseLandmarkType.rightKnee);
-      final rightAnkle = _findLandmark(pose, PoseLandmarkType.rightAnkle);
-
-      double? leftKneeAngle;
-      double? rightKneeAngle;
-
-      if (leftHip != null && leftKnee != null && leftAnkle != null) {
-        leftKneeAngle = _calculateAngle(
-          [leftHip.x, leftHip.y],
-          [leftKnee.x, leftKnee.y],
-          [leftAnkle.x, leftAnkle.y],
-        );
-      }
-
-      if (rightHip != null && rightKnee != null && rightAnkle != null) {
-        rightKneeAngle = _calculateAngle(
-          [rightHip.x, rightHip.y],
-          [rightKnee.x, rightKnee.y],
-          [rightAnkle.x, rightAnkle.y],
-        );
-      }
-
-      if (leftKneeAngle == null && rightKneeAngle == null) return null;
-
-      final angles = [leftKneeAngle, rightKneeAngle].where((a) => a != null).cast<double>().toList();
-      final avgKneeAngle = angles.reduce((a, b) => a + b) / angles.length;
-      final isStanding = avgKneeAngle > 160;
-
-      return {
-        'leftKneeAngle': leftKneeAngle,
-        'rightKneeAngle': rightKneeAngle,
-        'kneeAngle': avgKneeAngle,
-        'isCorrectPosition': isStanding,
-      };
-    } catch (e) {
-      print('일어나기 분석 오류: $e');
-      return null;
-    }
-  }
+  // 제거됨: 일어나기 분석(무릎 각도, 현재 기능 미사용)
 
   Map<String, dynamic>? _analyzeAnkle(Pose pose) {
     try {
@@ -616,13 +393,7 @@ class PoseDetectionProvider extends ChangeNotifier {
     return [x, y];
   }
 
-  double _calculateTorsoAngle(PoseLandmark shoulder, PoseLandmark hip) {
-    final dx = hip.x - shoulder.x;
-    final dy = hip.y - shoulder.y;
-    final angleRad = atan2(dy, dx);
-    final angleDeg = (angleRad * 180.0 / pi - 90).abs();
-    return angleDeg;
-  }
+  // 제거됨: 몸통 각도 계산(현재 기능 미사용)
 
   @override
   void dispose() {
